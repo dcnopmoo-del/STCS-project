@@ -57,6 +57,14 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        tutor: {
+          bubble: "hsl(var(--tutor-bubble))",
+          "bubble-foreground": "hsl(var(--tutor-bubble-foreground))",
+        },
+        user: {
+          bubble: "hsl(var(--user-bubble))",
+          "bubble-foreground": "hsl(var(--user-bubble-foreground))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
