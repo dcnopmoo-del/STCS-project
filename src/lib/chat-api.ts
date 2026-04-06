@@ -25,9 +25,18 @@ export async function callMcpTool(
         params: { name: toolName, arguments: args },
       }),
     });
-    const data = await response.json();
-    if (data.result?.content?.[0]?.text) {
-      return JSON.parse(data.result.content[0].text);
+    const text = await response.text();
+    // MCP server returns SSE format: "data: {json}\n\n"
+    const lines = text.split("\n").filter((l) => l.startsWith("data: "));
+    for (const line of lines) {
+      const jsonStr = line.slice(6).trim();
+      if (jsonStr === "[DONE]") continue;
+      try {
+        const data = JSON.parse(jsonStr);
+        if (data.result?.content?.[0]?.text) {
+          return JSON.parse(data.result.content[0].text);
+        }
+      } catch { /* skip */ }
     }
     return null;
   } catch (e) {
