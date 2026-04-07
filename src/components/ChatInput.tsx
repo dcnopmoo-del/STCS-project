@@ -34,13 +34,13 @@ const ChatInput = ({ onSend, disabled }: ChatInputProps) => {
   };
 
   return (
-    <div className="flex items-end gap-2 rounded-2xl border bg-card p-2 shadow-sm">
+    <div className="flex items-end gap-2 rounded-2xl border bg-card p-2 shadow-sm transition-colors focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20">
       <textarea
         ref={textareaRef}
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Describe your problem or question..."
+        placeholder="Ask a question or describe your problem..."
         disabled={disabled}
         rows={1}
         className="flex-1 resize-none bg-transparent px-2 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
@@ -49,7 +49,7 @@ const ChatInput = ({ onSend, disabled }: ChatInputProps) => {
         size="icon"
         onClick={handleSend}
         disabled={disabled || !input.trim()}
-        className="h-9 w-9 shrink-0 rounded-xl"
+        className="h-9 w-9 shrink-0 rounded-xl transition-transform active:scale-95"
       >
         <Send className="h-4 w-4" />
       </Button>
