@@ -2,26 +2,58 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import ChatHeader from "@/components/ChatHeader";
 import ChatMessage from "@/components/ChatMessage";
 import ChatInput from "@/components/ChatInput";
+import ChatSidebar, { type Conversation } from "@/components/ChatSidebar";
 import TypingIndicator from "@/components/TypingIndicator";
+import QuickActions from "@/components/QuickActions";
+import EmptyState from "@/components/EmptyState";
 import { streamChat, type Message } from "@/lib/chat-api";
 import { useToast } from "@/hooks/use-toast";
-import { Lightbulb, BookOpen, Target } from "lucide-react";
 
 const WELCOME_MESSAGE: Message = {
   role: "assistant",
   content:
-    "👋 Welcome! I'm your Socratic tutor. I'm here to help you **think through problems** — not to give you answers.\n\nTell me what you're working on, and I'll guide you step by step. What would you like to learn today?",
+    "👋 Welcome! I'm your Socratic tutor. I'm here to help you **think through problems** — not to give you answers.\n\nTell me what you're working on, and I'll guide you step by step.",
 };
 
+type ConversationData = {
+  id: string;
+  title: string;
+  messages: Message[];
+  updatedAt: Date;
+};
+
+const createConversation = (): ConversationData => ({
+  id: crypto.randomUUID(),
+  title: "New conversation",
+  messages: [WELCOME_MESSAGE],
+  updatedAt: new Date(),
+});
+
 const Index = () => {
-  const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
+  const [conversations, setConversations] = useState<ConversationData[]>(() => [createConversation()]);
+  const [activeId, setActiveId] = useState<string>(conversations[0].id);
   const [isLoading, setIsLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+  const active = conversations.find((c) => c.id === activeId)!;
+  const messages = active.messages;
+
+  const updateMessages = useCallback(
+    (updater: (msgs: Message[]) => Message[]) => {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeId ? { ...c, messages: updater(c.messages), updatedAt: new Date() } : c
+        )
+      );
+    },
+    [activeId]
+  );
+
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
     }
   }, []);
 
@@ -32,22 +64,35 @@ const Index = () => {
   const handleSend = async (input: string) => {
     const userMsg: Message = { role: "user", content: input };
     const updatedMessages = [...messages, userMsg];
-    setMessages(updatedMessages);
-    setIsLoading(true);
 
+    // Update title from first user message
+    if (messages.length <= 1) {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeId ? { ...c, title: input.slice(0, 40) + (input.length > 40 ? "…" : ""), messages: updatedMessages, updatedAt: new Date() } : c
+        )
+      );
+    } else {
+      updateMessages(() => updatedMessages);
+    }
+
+    setIsLoading(true);
     let assistantSoFar = "";
 
     const upsertAssistant = (chunk: string) => {
       assistantSoFar += chunk;
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last?.role === "assistant" && prev.length > updatedMessages.length) {
-          return prev.map((m, i) =>
-            i === prev.length - 1 ? { ...m, content: assistantSoFar } : m
-          );
-        }
-        return [...prev.slice(0, updatedMessages.length), { role: "assistant", content: assistantSoFar }];
-      });
+      const snap = assistantSoFar;
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id !== activeId) return c;
+          const msgs = c.messages;
+          const last = msgs[msgs.length - 1];
+          if (last?.role === "assistant" && msgs.length > updatedMessages.length) {
+            return { ...c, messages: msgs.map((m, i) => (i === msgs.length - 1 ? { ...m, content: snap } : m)) };
+          }
+          return { ...c, messages: [...msgs.slice(0, updatedMessages.length), { role: "assistant" as const, content: snap }] };
+        })
+      );
     };
 
     try {
@@ -57,53 +102,74 @@ const Index = () => {
         onDone: () => setIsLoading(false),
         onError: (error) => {
           setIsLoading(false);
-          toast({ title: "Error", description: error, variant: "destructive" });
+          toast({ title: "Something went wrong", description: error, variant: "destructive" });
         },
       });
-    } catch (e) {
-      console.error(e);
+    } catch {
       setIsLoading(false);
-      toast({ title: "Error", description: "Failed to connect to tutor", variant: "destructive" });
+      toast({ title: "Connection error", description: "Couldn't reach the tutor. Please try again.", variant: "destructive" });
     }
   };
 
+  const handleNewConversation = () => {
+    const conv = createConversation();
+    setConversations((prev) => [conv, ...prev]);
+    setActiveId(conv.id);
+  };
+
   const showEmptyState = messages.length <= 1;
+  const hasActiveMessages = messages.length > 1;
+
+  // Group consecutive messages by role
+  const groupedMessages = messages.map((msg, i) => ({
+    ...msg,
+    isGrouped: i > 0 && messages[i - 1].role === msg.role,
+  }));
+
+  const sidebarConversations: Conversation[] = conversations.map((c) => ({
+    id: c.id,
+    title: c.title,
+    updatedAt: c.updatedAt,
+  }));
 
   return (
-    <div className="flex h-screen flex-col bg-background">
-      <ChatHeader />
+    <div className="flex h-screen bg-background">
+      {/* Sidebar */}
+      <ChatSidebar
+        conversations={sidebarConversations}
+        activeId={activeId}
+        onSelect={setActiveId}
+        onNew={handleNewConversation}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto chat-scroll">
-        <div className="mx-auto max-w-2xl space-y-4 px-4 py-6">
-          {messages.map((msg, i) => (
-            <ChatMessage key={i} role={msg.role} content={msg.content} />
-          ))}
-          {isLoading && !messages[messages.length - 1]?.content && <TypingIndicator />}
+      {/* Main chat area */}
+      <div className="flex flex-1 flex-col min-w-0">
+        <ChatHeader onMenuClick={() => setSidebarOpen(true)} />
 
-          {showEmptyState && (
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
-              {[
-                { icon: Lightbulb, label: "Solve a math problem", prompt: "I need help solving a quadratic equation" },
-                { icon: BookOpen, label: "Understand a concept", prompt: "Can you help me understand how photosynthesis works?" },
-                { icon: Target, label: "Debug my code", prompt: "I have a bug in my Python code and I can't figure out what's wrong" },
-              ].map(({ icon: Icon, label, prompt }) => (
-                <button
-                  key={label}
-                  onClick={() => handleSend(prompt)}
-                  className="flex flex-col items-center gap-2 rounded-xl border bg-card p-4 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:bg-accent hover:text-accent-foreground"
-                >
-                  <Icon className="h-5 w-5" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto chat-scroll">
+          <div className="mx-auto max-w-2xl px-4 py-6">
+            {showEmptyState ? (
+              <>
+                <ChatMessage role="assistant" content={WELCOME_MESSAGE.content} />
+                <EmptyState onSend={handleSend} />
+              </>
+            ) : (
+              groupedMessages.map((msg, i) => (
+                <ChatMessage key={i} role={msg.role} content={msg.content} isGrouped={msg.isGrouped} />
+              ))
+            )}
+            {isLoading && !messages[messages.length - 1]?.content && <TypingIndicator />}
+          </div>
         </div>
-      </div>
 
-      <div className="border-t bg-card px-4 py-3">
-        <div className="mx-auto max-w-2xl">
-          <ChatInput onSend={handleSend} disabled={isLoading} />
+        {/* Bottom input area */}
+        <div className="border-t bg-card/80 backdrop-blur-sm px-4 py-3">
+          <div className="mx-auto max-w-2xl space-y-2">
+            {hasActiveMessages && <QuickActions onSend={handleSend} disabled={isLoading} />}
+            <ChatInput onSend={handleSend} disabled={isLoading} />
+          </div>
         </div>
       </div>
     </div>
