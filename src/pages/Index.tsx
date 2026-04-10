@@ -3,11 +3,12 @@ import ChatHeader from "@/components/ChatHeader";
 import ChatMessage from "@/components/ChatMessage";
 import ChatInput from "@/components/ChatInput";
 import ChatSidebar, { type Conversation } from "@/components/ChatSidebar";
-import TypingIndicator from "@/components/TypingIndicator";
+import ThinkingIndicator from "@/components/ThinkingIndicator";
 import QuickActions from "@/components/QuickActions";
 import EmptyState from "@/components/EmptyState";
 import { streamChat, type Message } from "@/lib/chat-api";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 const WELCOME_MESSAGE: Message = {
   role: "assistant",
@@ -30,6 +31,7 @@ const createConversation = (): ConversationData => ({
 });
 
 const Index = () => {
+  const { user, signOut } = useAuth();
   const [conversations, setConversations] = useState<ConversationData[]>(() => [createConversation()]);
   const [activeId, setActiveId] = useState<string>(conversations[0].id);
   const [isLoading, setIsLoading] = useState(false);
@@ -65,7 +67,6 @@ const Index = () => {
     const userMsg: Message = { role: "user", content: input };
     const updatedMessages = [...messages, userMsg];
 
-    // Update title from first user message
     if (messages.length <= 1) {
       setConversations((prev) =>
         prev.map((c) =>
@@ -119,8 +120,8 @@ const Index = () => {
 
   const showEmptyState = messages.length <= 1;
   const hasActiveMessages = messages.length > 1;
+  const isThinking = isLoading && (messages[messages.length - 1]?.role === "user" || !messages[messages.length - 1]?.content);
 
-  // Group consecutive messages by role
   const groupedMessages = messages.map((msg, i) => ({
     ...msg,
     isGrouped: i > 0 && messages[i - 1].role === msg.role,
@@ -134,7 +135,6 @@ const Index = () => {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Sidebar */}
       <ChatSidebar
         conversations={sidebarConversations}
         activeId={activeId}
@@ -142,9 +142,10 @@ const Index = () => {
         onNew={handleNewConversation}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        userEmail={user?.email}
+        onSignOut={signOut}
       />
 
-      {/* Main chat area */}
       <div className="flex flex-1 flex-col min-w-0">
         <ChatHeader onMenuClick={() => setSidebarOpen(true)} />
 
@@ -160,11 +161,10 @@ const Index = () => {
                 <ChatMessage key={i} role={msg.role} content={msg.content} isGrouped={msg.isGrouped} />
               ))
             )}
-            {isLoading && !messages[messages.length - 1]?.content && <TypingIndicator />}
+            {isThinking && <ThinkingIndicator />}
           </div>
         </div>
 
-        {/* Bottom input area */}
         <div className="border-t bg-card/80 backdrop-blur-sm px-4 py-3">
           <div className="mx-auto max-w-2xl space-y-2">
             {hasActiveMessages && <QuickActions onSend={handleSend} disabled={isLoading} />}

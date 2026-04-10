@@ -1,4 +1,4 @@
-import { Plus, MessageSquare, X } from "lucide-react";
+import { Plus, MessageSquare, X, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "./ThemeToggle";
 
@@ -15,12 +15,13 @@ type ChatSidebarProps = {
   onNew: () => void;
   open: boolean;
   onClose: () => void;
+  userEmail?: string;
+  onSignOut?: () => void;
 };
 
-const ChatSidebar = ({ conversations, activeId, onSelect, onNew, open, onClose }: ChatSidebarProps) => {
+const ChatSidebar = ({ conversations, activeId, onSelect, onNew, open, onClose, userEmail, onSignOut }: ChatSidebarProps) => {
   return (
     <>
-      {/* Mobile overlay */}
       {open && (
         <div className="fixed inset-0 z-30 bg-background/80 backdrop-blur-sm md:hidden" onClick={onClose} />
       )}
@@ -30,7 +31,6 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, open, onClose }
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* Header */}
         <div className="flex items-center justify-between border-b px-4 py-3">
           <h2 className="text-sm font-semibold text-foreground">Conversations</h2>
           <div className="flex items-center gap-1">
@@ -41,7 +41,6 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, open, onClose }
           </div>
         </div>
 
-        {/* New chat button */}
         <div className="p-3">
           <Button onClick={onNew} className="w-full justify-start gap-2 rounded-xl" variant="outline">
             <Plus className="h-4 w-4" />
@@ -49,7 +48,6 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, open, onClose }
           </Button>
         </div>
 
-        {/* Conversation list */}
         <div className="flex-1 overflow-y-auto px-3 pb-3 chat-scroll">
           <div className="space-y-1">
             {conversations.map((conv) => (
@@ -68,6 +66,18 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, open, onClose }
             ))}
           </div>
         </div>
+
+        {/* User info & logout */}
+        {userEmail && (
+          <div className="border-t px-4 py-3">
+            <div className="flex items-center justify-between">
+              <span className="truncate text-xs text-muted-foreground">{userEmail}</span>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={onSignOut} title="Sign out">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </aside>
     </>
   );
