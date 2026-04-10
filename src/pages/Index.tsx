@@ -146,6 +146,7 @@ const Index = () => {
         onClose={() => setSidebarOpen(false)}
         userEmail={user?.email}
         onSignOut={signOut}
+        onLogin={() => navigate("/auth")}
       />
 
       <div className="flex flex-1 flex-col min-w-0">
