@@ -16,6 +16,7 @@ type ChatSidebarProps = {
   onClose: () => void;
   userEmail?: string;
   onSignOut?: () => void;
+  onLogin?: () => void;
 };
 
 const ChatSidebar = ({ conversations, activeId, onSelect, onNew, open, onClose, userEmail, onSignOut }: ChatSidebarProps) => {
