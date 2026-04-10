@@ -33,6 +33,7 @@ const createConversation = (): ConversationData => ({
 
 const Index = () => {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [conversations, setConversations] = useState<ConversationData[]>(() => [createConversation()]);
   const [activeId, setActiveId] = useState<string>(conversations[0].id);
   const [isLoading, setIsLoading] = useState(false);
