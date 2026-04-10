@@ -19,7 +19,7 @@ type ChatSidebarProps = {
   onLogin?: () => void;
 };
 
-const ChatSidebar = ({ conversations, activeId, onSelect, onNew, open, onClose, userEmail, onSignOut }: ChatSidebarProps) => {
+const ChatSidebar = ({ conversations, activeId, onSelect, onNew, open, onClose, userEmail, onSignOut, onLogin }: ChatSidebarProps) => {
   return (
     <>
       {open && (
