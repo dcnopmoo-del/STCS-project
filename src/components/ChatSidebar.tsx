@@ -1,7 +1,6 @@
-import { Plus, MessageSquare, X, LogOut } from "lucide-react";
+import { Plus, MessageSquare, X, LogOut, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "./ThemeToggle";
-
 export type Conversation = {
   id: string;
   title: string;
