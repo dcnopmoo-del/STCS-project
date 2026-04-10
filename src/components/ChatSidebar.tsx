@@ -1,7 +1,6 @@
-import { Plus, MessageSquare, X, LogOut } from "lucide-react";
+import { Plus, MessageSquare, X, LogOut, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "./ThemeToggle";
-
 export type Conversation = {
   id: string;
   title: string;
@@ -17,9 +16,10 @@ type ChatSidebarProps = {
   onClose: () => void;
   userEmail?: string;
   onSignOut?: () => void;
+  onLogin?: () => void;
 };
 
-const ChatSidebar = ({ conversations, activeId, onSelect, onNew, open, onClose, userEmail, onSignOut }: ChatSidebarProps) => {
+const ChatSidebar = ({ conversations, activeId, onSelect, onNew, open, onClose, userEmail, onSignOut, onLogin }: ChatSidebarProps) => {
   return (
     <>
       {open && (
@@ -68,7 +68,7 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, open, onClose, 
         </div>
 
         {/* User info & logout */}
-        {userEmail && (
+        {userEmail ? (
           <div className="border-t px-4 py-3">
             <div className="flex items-center justify-between">
               <span className="truncate text-xs text-muted-foreground">{userEmail}</span>
@@ -76,6 +76,13 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, open, onClose, 
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
+          </div>
+        ) : (
+          <div className="border-t px-4 py-3">
+            <Button variant="outline" className="w-full justify-start gap-2 rounded-xl" onClick={onLogin}>
+              <LogIn className="h-4 w-4" />
+              Login / Sign Up
+            </Button>
           </div>
         )}
       </aside>

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import ChatHeader from "@/components/ChatHeader";
 import ChatMessage from "@/components/ChatMessage";
 import ChatInput from "@/components/ChatInput";
@@ -32,6 +33,7 @@ const createConversation = (): ConversationData => ({
 
 const Index = () => {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [conversations, setConversations] = useState<ConversationData[]>(() => [createConversation()]);
   const [activeId, setActiveId] = useState<string>(conversations[0].id);
   const [isLoading, setIsLoading] = useState(false);
@@ -144,6 +146,7 @@ const Index = () => {
         onClose={() => setSidebarOpen(false)}
         userEmail={user?.email}
         onSignOut={signOut}
+        onLogin={() => navigate("/auth")}
       />
 
       <div className="flex flex-1 flex-col min-w-0">
