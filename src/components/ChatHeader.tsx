@@ -1,6 +1,5 @@
 import { GraduationCap, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import ThemeToggle from "./ThemeToggle";
 
 type ChatHeaderProps = {
   onMenuClick?: () => void;
@@ -19,9 +18,6 @@ const ChatHeader = ({ onMenuClick }: ChatHeaderProps) => (
     <div className="flex-1">
       <h1 className="text-sm font-semibold text-foreground">Socratic Tutor</h1>
       <p className="text-xs text-muted-foreground">Guiding you to answers</p>
-    </div>
-    <div className="hidden md:block">
-      <ThemeToggle />
     </div>
   </header>
 );
