@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import PasswordInput from "@/components/PasswordInput";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { GraduationCap, Loader2 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -13,6 +16,13 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) navigate("/", { replace: true });
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,22 +32,39 @@ const Auth = () => {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        // Navigation handled by useEffect above
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: { emailRedirectTo: window.location.origin },
         });
         if (error) throw error;
+
+        // If user already exists, signUp returns a user with identities = []
+        if (data.user && data.user.identities && data.user.identities.length === 0) {
+          toast({
+            title: "Email already registered",
+            description: "This email is already registered. Please sign in instead.",
+            variant: "destructive",
+          });
+          setIsLogin(true);
+          return;
+        }
+
         toast({
           title: "Check your email",
           description: "We sent you a confirmation link to verify your account.",
         });
       }
     } catch (error: any) {
+      let message = error.message || "Something went wrong";
+      if (message.toLowerCase().includes("invalid login")) {
+        message = "Invalid email or password. Please try again.";
+      }
       toast({
         title: "Authentication error",
-        description: error.message || "Something went wrong",
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -76,15 +103,15 @@ const Auth = () => {
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
               className="rounded-xl"
+              showStrength={!isLogin}
             />
           </div>
           <Button type="submit" className="w-full rounded-xl" disabled={loading}>
