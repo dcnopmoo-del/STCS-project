@@ -10,50 +10,28 @@ import EmptyState from "@/components/EmptyState";
 import { streamChat, type Message } from "@/lib/chat-api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-
-const WELCOME_MESSAGE: Message = {
-  role: "assistant",
-  content:
-    "👋 Welcome! I'm your Socratic tutor. I'm here to help you **think through problems** — not to give you answers.\n\nTell me what you're working on, and I'll guide you step by step.",
-};
-
-type ConversationData = {
-  id: string;
-  title: string;
-  messages: Message[];
-  updatedAt: Date;
-};
-
-const createConversation = (): ConversationData => ({
-  id: crypto.randomUUID(),
-  title: "New conversation",
-  messages: [WELCOME_MESSAGE],
-  updatedAt: new Date(),
-});
+import { useConversations } from "@/hooks/use-conversations";
 
 const Index = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [conversations, setConversations] = useState<ConversationData[]>(() => [createConversation()]);
-  const [activeId, setActiveId] = useState<string>(conversations[0].id);
+  const {
+    conversations,
+    setConversations,
+    activeId,
+    setActiveId,
+    active,
+    newConversation,
+    persistConversation,
+    welcomeMessage,
+  } = useConversations(user);
+
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const active = conversations.find((c) => c.id === activeId)!;
   const messages = active.messages;
-
-  const updateMessages = useCallback(
-    (updater: (msgs: Message[]) => Message[]) => {
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === activeId ? { ...c, messages: updater(c.messages), updatedAt: new Date() } : c
-        )
-      );
-    },
-    [activeId]
-  );
 
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
@@ -68,16 +46,13 @@ const Index = () => {
   const handleSend = async (input: string) => {
     const userMsg: Message = { role: "user", content: input };
     const updatedMessages = [...messages, userMsg];
+    const newTitle = messages.length <= 1 ? input.slice(0, 40) + (input.length > 40 ? "…" : "") : active.title;
 
-    if (messages.length <= 1) {
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === activeId ? { ...c, title: input.slice(0, 40) + (input.length > 40 ? "…" : ""), messages: updatedMessages, updatedAt: new Date() } : c
-        )
-      );
-    } else {
-      updateMessages(() => updatedMessages);
-    }
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === activeId ? { ...c, title: newTitle, messages: updatedMessages, updatedAt: new Date() } : c
+      )
+    );
 
     setIsLoading(true);
     let assistantSoFar = "";
@@ -100,9 +75,17 @@ const Index = () => {
 
     try {
       await streamChat({
-        messages: updatedMessages.filter((m) => m !== WELCOME_MESSAGE),
+        messages: updatedMessages.filter((m) => m !== welcomeMessage),
         onDelta: upsertAssistant,
-        onDone: () => setIsLoading(false),
+        onDone: async () => {
+          setIsLoading(false);
+          // Persist the user message + assistant response
+          if (user) {
+            const conv = { ...active, title: newTitle };
+            const finalAssistantMsg: Message = { role: "assistant", content: assistantSoFar };
+            await persistConversation(conv, [userMsg, finalAssistantMsg]);
+          }
+        },
         onError: (error) => {
           setIsLoading(false);
           toast({ title: "Something went wrong", description: error, variant: "destructive" });
@@ -112,12 +95,6 @@ const Index = () => {
       setIsLoading(false);
       toast({ title: "Connection error", description: "Couldn't reach the tutor. Please try again.", variant: "destructive" });
     }
-  };
-
-  const handleNewConversation = () => {
-    const conv = createConversation();
-    setConversations((prev) => [conv, ...prev]);
-    setActiveId(conv.id);
   };
 
   const showEmptyState = messages.length <= 1;
@@ -141,7 +118,7 @@ const Index = () => {
         conversations={sidebarConversations}
         activeId={activeId}
         onSelect={setActiveId}
-        onNew={handleNewConversation}
+        onNew={newConversation}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         userEmail={user?.email}
@@ -156,7 +133,7 @@ const Index = () => {
           <div className="mx-auto max-w-2xl px-4 py-6">
             {showEmptyState ? (
               <>
-                <ChatMessage role="assistant" content={WELCOME_MESSAGE.content} />
+                <ChatMessage role="assistant" content={welcomeMessage.content} />
                 <EmptyState onSend={handleSend} />
               </>
             ) : (
