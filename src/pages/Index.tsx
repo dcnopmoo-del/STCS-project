@@ -104,6 +104,55 @@ const Index = () => {
     }
   };
 
+  const handleLearningSubmit = async (input: string) => {
+    if (!activeService) return;
+    const service = activeService;
+    setActiveService(null);
+
+    const isAr = language === "ar";
+    const meta = SERVICE_LABELS[service];
+    const userText = isAr
+      ? `${meta.ar}: ${input}`
+      : `${meta.en}: ${input}`;
+    const userMsg: Message = { role: "user", content: userText };
+    const updatedMessages = [...messages, userMsg];
+    const newTitle = messages.length <= 1 ? userText.slice(0, 40) + (userText.length > 40 ? "…" : "") : active.title;
+
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === activeId ? { ...c, title: newTitle, messages: updatedMessages, updatedAt: new Date() } : c
+      )
+    );
+    setIsLoading(true);
+
+    try {
+      const result = await callLearningTool(service, input, language);
+      const assistantContent = encodeLearningMessage(result);
+      const assistantMsg: Message = { role: "assistant", content: assistantContent };
+
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeId
+            ? { ...c, messages: [...updatedMessages, assistantMsg], updatedAt: new Date() }
+            : c
+        )
+      );
+      setIsLoading(false);
+
+      if (user) {
+        const conv = { ...active, title: newTitle };
+        await persistConversation(conv, [userMsg, assistantMsg]);
+      }
+    } catch (err) {
+      setIsLoading(false);
+      toast({
+        title: "Couldn't generate content",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const showEmptyState = messages.length <= 1;
   const hasActiveMessages = messages.length > 1;
   const isThinking = isLoading && (messages[messages.length - 1]?.role === "user" || !messages[messages.length - 1]?.content);
