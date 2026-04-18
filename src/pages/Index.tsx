@@ -203,11 +203,23 @@ const Index = () => {
 
         <div className="border-t bg-card/80 backdrop-blur-sm px-4 py-3">
           <div className="mx-auto max-w-2xl space-y-2">
+            <LearningServiceBar
+              onSelect={setActiveService}
+              disabled={isLoading}
+              language={language}
+            />
             {hasActiveMessages && <QuickActions onSend={handleSend} disabled={isLoading} />}
             <ChatInput onSend={handleSend} disabled={isLoading} />
           </div>
         </div>
       </div>
+
+      <LearningTopicDialog
+        service={activeService}
+        language={language}
+        onClose={() => setActiveService(null)}
+        onSubmit={handleLearningSubmit}
+      />
     </div>
   );
 };
