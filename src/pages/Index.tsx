@@ -33,6 +33,7 @@ const Index = () => {
   const { language, setLanguage } = useLanguage();
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeService, setActiveService] = useState<LearningService | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
