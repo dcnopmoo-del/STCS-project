@@ -101,26 +101,37 @@ export function useConversations(user: User | null) {
       const nonWelcome = newMessages.filter((m) => m !== WELCOME_MESSAGE && m.content !== WELCOME_MESSAGE.content);
       if (nonWelcome.length === 0) return;
 
-      if (!conv.persisted) {
-        await supabase.from("conversations").insert({
-          id: conv.id,
-          user_id: user.id,
-          title: conv.title,
-        });
-        conv.persisted = true;
-      } else {
-        await supabase.from("conversations").update({ title: conv.title }).eq("id", conv.id);
-      }
+      try {
+        // Use upsert to safely handle the first-message race and avoid duplicate-key errors
+        // if persistConversation is called concurrently for the same conversation.
+        const { error: convErr } = await supabase
+          .from("conversations")
+          .upsert(
+            { id: conv.id, user_id: user.id, title: conv.title, updated_at: new Date().toISOString() },
+            { onConflict: "id" }
+          );
+        if (convErr) {
+          console.error("Failed to upsert conversation:", convErr);
+          return;
+        }
 
-      // Insert only the latest message(s) — we pass the ones to save
-      const toInsert = nonWelcome.map((m) => ({
-        conversation_id: conv.id,
-        role: m.role,
-        content: m.content,
-      }));
+        // Mark this conversation as persisted in React state so future calls take the update path.
+        setConversations((prev) =>
+          prev.map((c) => (c.id === conv.id ? { ...c, persisted: true } : c))
+        );
 
-      if (toInsert.length > 0) {
-        await supabase.from("messages").insert(toInsert);
+        const toInsert = nonWelcome.map((m) => ({
+          conversation_id: conv.id,
+          role: m.role,
+          content: m.content,
+        }));
+
+        if (toInsert.length > 0) {
+          const { error: msgErr } = await supabase.from("messages").insert(toInsert);
+          if (msgErr) console.error("Failed to insert messages:", msgErr);
+        }
+      } catch (e) {
+        console.error("persistConversation error:", e);
       }
     },
     [user]
