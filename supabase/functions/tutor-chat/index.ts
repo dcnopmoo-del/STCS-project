@@ -5,6 +5,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const LANGUAGE_RULES = {
+  auto: `LANGUAGE RULE (CRITICAL):
+- Detect the language of the student's most recent message.
+- If the student writes in Arabic, respond ENTIRELY in Arabic (including hints, questions, explanations, prefixes — translate "💡 Hint:" to "💡 تلميح:", "🔍 Let me help you further:" to "🔍 دعني أساعدك أكثر:", "📝 Here's the solution:" to "📝 إليك الحل:").
+- If the student writes in English, respond ENTIRELY in English.
+- Never mix languages in a single response. Match the student's language exactly on every turn.`,
+  en: `LANGUAGE RULE (CRITICAL):
+- The user has manually selected English. Respond ONLY in English regardless of the language of their message.
+- All hints, questions, explanations, and prefixes must be in English.`,
+  ar: `LANGUAGE RULE (CRITICAL):
+- لقد اختار المستخدم اللغة العربية يدويًا. أجب باللغة العربية فقط بغض النظر عن لغة رسالته.
+- يجب أن تكون جميع التلميحات والأسئلة والشروحات والبادئات باللغة العربية.
+- استخدم: "💡 تلميح:" بدلاً من "💡 Hint:"، و"🔍 دعني أساعدك أكثر:" بدلاً من "🔍 Let me help you further:"، و"📝 إليك الحل:" بدلاً من "📝 Here's the solution:".`,
+} as const;
+
 const SYSTEM_PROMPT = `You are a Socratic tutor. Your role is to guide students toward understanding through questions and hints.
 
 ESCALATION STRATEGY (follow this progression strictly):
@@ -53,11 +68,12 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, mcpContext } = await req.json();
+    const { messages, mcpContext, language } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    let systemContent = SYSTEM_PROMPT;
+    const langKey = (language === "en" || language === "ar") ? language : "auto";
+    let systemContent = `${SYSTEM_PROMPT}\n\n${LANGUAGE_RULES[langKey]}`;
     if (mcpContext?.hint) {
       systemContent += `\n\nMCP Hint Context (use subtly, integrate into your escalation): ${mcpContext.hint}`;
     }
