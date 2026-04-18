@@ -1,5 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import { Bot, User } from "lucide-react";
+import { decodeLearningMessage } from "@/lib/learning-tools";
+import LearningRenderer from "@/components/learning/LearningRenderer";
 
 type ChatMessageProps = {
   role: "user" | "assistant";
@@ -9,6 +11,7 @@ type ChatMessageProps = {
 
 const ChatMessage = ({ role, content, isGrouped = false }: ChatMessageProps) => {
   const isUser = role === "user";
+  const learning = !isUser ? decodeLearningMessage(content) : null;
 
   return (
     <div
