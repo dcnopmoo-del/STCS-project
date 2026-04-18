@@ -7,7 +7,10 @@ import ChatSidebar, { type Conversation } from "@/components/ChatSidebar";
 import ThinkingIndicator from "@/components/ThinkingIndicator";
 import QuickActions from "@/components/QuickActions";
 import EmptyState from "@/components/EmptyState";
+import LearningServiceBar from "@/components/LearningServiceBar";
+import LearningTopicDialog from "@/components/LearningTopicDialog";
 import { streamChat, type Message } from "@/lib/chat-api";
+import { callLearningTool, encodeLearningMessage, type LearningService, SERVICE_LABELS } from "@/lib/learning-tools";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useConversations } from "@/hooks/use-conversations";
@@ -30,6 +33,7 @@ const Index = () => {
   const { language, setLanguage } = useLanguage();
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeService, setActiveService] = useState<LearningService | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -100,6 +104,55 @@ const Index = () => {
     }
   };
 
+  const handleLearningSubmit = async (input: string) => {
+    if (!activeService) return;
+    const service = activeService;
+    setActiveService(null);
+
+    const isAr = language === "ar";
+    const meta = SERVICE_LABELS[service];
+    const userText = isAr
+      ? `${meta.ar}: ${input}`
+      : `${meta.en}: ${input}`;
+    const userMsg: Message = { role: "user", content: userText };
+    const updatedMessages = [...messages, userMsg];
+    const newTitle = messages.length <= 1 ? userText.slice(0, 40) + (userText.length > 40 ? "…" : "") : active.title;
+
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === activeId ? { ...c, title: newTitle, messages: updatedMessages, updatedAt: new Date() } : c
+      )
+    );
+    setIsLoading(true);
+
+    try {
+      const result = await callLearningTool(service, input, language);
+      const assistantContent = encodeLearningMessage(result);
+      const assistantMsg: Message = { role: "assistant", content: assistantContent };
+
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeId
+            ? { ...c, messages: [...updatedMessages, assistantMsg], updatedAt: new Date() }
+            : c
+        )
+      );
+      setIsLoading(false);
+
+      if (user) {
+        const conv = { ...active, title: newTitle };
+        await persistConversation(conv, [userMsg, assistantMsg]);
+      }
+    } catch (err) {
+      setIsLoading(false);
+      toast({
+        title: "Couldn't generate content",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const showEmptyState = messages.length <= 1;
   const hasActiveMessages = messages.length > 1;
   const isThinking = isLoading && (messages[messages.length - 1]?.role === "user" || !messages[messages.length - 1]?.content);
@@ -150,11 +203,23 @@ const Index = () => {
 
         <div className="border-t bg-card/80 backdrop-blur-sm px-4 py-3">
           <div className="mx-auto max-w-2xl space-y-2">
+            <LearningServiceBar
+              onSelect={setActiveService}
+              disabled={isLoading}
+              language={language}
+            />
             {hasActiveMessages && <QuickActions onSend={handleSend} disabled={isLoading} />}
             <ChatInput onSend={handleSend} disabled={isLoading} />
           </div>
         </div>
       </div>
+
+      <LearningTopicDialog
+        service={activeService}
+        language={language}
+        onClose={() => setActiveService(null)}
+        onSubmit={handleLearningSubmit}
+      />
     </div>
   );
 };

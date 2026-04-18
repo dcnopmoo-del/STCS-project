@@ -1,5 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import { Bot, User } from "lucide-react";
+import { decodeLearningMessage } from "@/lib/learning-tools";
+import LearningRenderer from "@/components/learning/LearningRenderer";
 
 type ChatMessageProps = {
   role: "user" | "assistant";
@@ -9,6 +11,7 @@ type ChatMessageProps = {
 
 const ChatMessage = ({ role, content, isGrouped = false }: ChatMessageProps) => {
   const isUser = role === "user";
+  const learning = !isUser ? decodeLearningMessage(content) : null;
 
   return (
     <div
@@ -44,9 +47,15 @@ const ChatMessage = ({ role, content, isGrouped = false }: ChatMessageProps) => 
         } ${isGrouped && isUser ? "rounded-tr-2xl rounded-br-md" : ""}
           ${isGrouped && !isUser ? "rounded-tl-2xl rounded-bl-md" : ""}`}
       >
-        <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-pre:bg-muted prose-pre:rounded-xl">
-          <ReactMarkdown>{content}</ReactMarkdown>
-        </div>
+        {learning ? (
+          <div className="min-w-[260px]">
+            <LearningRenderer data={learning} />
+          </div>
+        ) : (
+          <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-pre:bg-muted prose-pre:rounded-xl">
+            <ReactMarkdown>{content}</ReactMarkdown>
+          </div>
+        )}
       </div>
     </div>
   );
