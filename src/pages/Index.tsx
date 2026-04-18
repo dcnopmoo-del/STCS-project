@@ -11,6 +11,7 @@ import { streamChat, type Message } from "@/lib/chat-api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useConversations } from "@/hooks/use-conversations";
+import { useLanguage } from "@/hooks/use-language";
 
 const Index = () => {
   const { user, signOut } = useAuth();
@@ -26,6 +27,7 @@ const Index = () => {
     welcomeMessage,
   } = useConversations(user);
 
+  const { language, setLanguage } = useLanguage();
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -76,6 +78,7 @@ const Index = () => {
     try {
       await streamChat({
         messages: updatedMessages.filter((m) => m !== welcomeMessage),
+        language,
         onDelta: upsertAssistant,
         onDone: async () => {
           setIsLoading(false);
@@ -127,7 +130,7 @@ const Index = () => {
       />
 
       <div className="flex flex-1 flex-col min-w-0">
-        <ChatHeader onMenuClick={() => setSidebarOpen(true)} />
+        <ChatHeader onMenuClick={() => setSidebarOpen(true)} language={language} onLanguageChange={setLanguage} />
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto chat-scroll">
           <div className="mx-auto max-w-2xl px-4 py-6">

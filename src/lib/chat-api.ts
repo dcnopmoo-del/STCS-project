@@ -77,11 +77,13 @@ export async function getMcpContext(messages: Message[]): Promise<{ hint?: strin
 
 export async function streamChat({
   messages,
+  language,
   onDelta,
   onDone,
   onError,
 }: {
   messages: Message[];
+  language?: "auto" | "en" | "ar";
   onDelta: (text: string) => void;
   onDone: () => void;
   onError: (error: string) => void;
@@ -95,7 +97,7 @@ export async function streamChat({
       "Content-Type": "application/json",
       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ messages, mcpContext }),
+    body: JSON.stringify({ messages, mcpContext, language: language ?? "auto" }),
   });
 
   if (!resp.ok) {
