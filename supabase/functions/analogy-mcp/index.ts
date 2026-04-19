@@ -67,5 +67,6 @@ mcpServer.tool("generate_analogy", {
 });
 
 const transport = new StreamableHttpTransport();
-app.all("/*", async (c) => await transport.handleRequest(c.req.raw, mcpServer));
+const httpHandler = transport.bind(mcpServer);
+app.all("/*", async (c) => await httpHandler(c.req.raw));
 Deno.serve(app.fetch);
