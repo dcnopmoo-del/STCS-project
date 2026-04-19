@@ -1,0 +1,86 @@
+import { Hono } from "npm:hono@4.4.0";
+import { McpServer, StreamableHttpTransport } from "npm:mcp-lite@0.10.0";
+
+const LANGUAGE_RULES = {
+  auto: `Detect input language. Arabic input → Arabic output. English input → English output. Never mix.`,
+  en: `Output ALL text fields in English regardless of input language.`,
+  ar: `أنتج جميع الحقول النصية باللغة العربية بغض النظر عن لغة الإدخال.`,
+} as const;
+
+async function callAI(systemPrompt: string, userInput: string, toolName: string, parameters: Record<string, unknown>) {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "google/gemini-3-flash-preview",
+      messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userInput }],
+      tools: [{ type: "function", function: { name: toolName, parameters } }],
+      tool_choice: { type: "function", function: { name: toolName } },
+    }),
+  });
+  if (!resp.ok) throw new Error(`AI gateway ${resp.status}: ${(await resp.text()).slice(0, 200)}`);
+  const data = await resp.json();
+  const a = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+  if (!a) throw new Error("No structured output from model");
+  return JSON.parse(a);
+}
+
+const app = new Hono();
+const mcpServer = new McpServer({ name: "concept-map-mcp", version: "1.0.0" });
+
+mcpServer.tool("generate_concept_map", {
+  description: "Generate a hierarchical concept map (mind map) for a topic. 2-3 levels deep.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      topic: { type: "string" as const, description: "Topic for the concept map" },
+      language: { type: "string" as const, enum: ["auto", "en", "ar"] as const },
+    },
+    required: ["topic"] as const,
+  },
+  handler: async (args: { topic: string; language?: "auto" | "en" | "ar" }) => {
+    const topic = (args.topic || "").trim();
+    if (!topic) throw new Error("topic is required");
+    const lang = args.language === "en" || args.language === "ar" ? args.language : "auto";
+    const system = `You are an expert at building hierarchical concept maps. Identify the main topic, 4-7 key subtopics, and 2-4 sub-subtopics each. Concise labels (1-5 words).\n\nLANGUAGE RULE (CRITICAL): ${LANGUAGE_RULES[lang]}`;
+    const payload = await callAI(system, `Build a concept map for: ${topic}`, "generate_concept_map", {
+      type: "object",
+      properties: {
+        topic: { type: "string" },
+        root: {
+          type: "object",
+          properties: {
+            label: { type: "string" },
+            children: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  label: { type: "string" },
+                  children: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: { label: { type: "string" } },
+                      required: ["label"], additionalProperties: false,
+                    },
+                  },
+                },
+                required: ["label"], additionalProperties: false,
+              },
+            },
+          },
+          required: ["label", "children"], additionalProperties: false,
+        },
+      },
+      required: ["topic", "root"], additionalProperties: false,
+    });
+    return { content: [{ type: "text" as const, text: JSON.stringify(payload) }] };
+  },
+});
+
+const transport = new StreamableHttpTransport();
+app.all("/*", async (c) => await transport.handleRequest(c.req.raw, mcpServer));
+Deno.serve(app.fetch);
