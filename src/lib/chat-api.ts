@@ -1,3 +1,9 @@
+export type Attachment = {
+  name: string;
+  mimeType: string;
+  base64: string;
+};
+
 export type Message = {
   role: "user" | "assistant";
   content: string;
@@ -78,12 +84,14 @@ export async function getMcpContext(messages: Message[]): Promise<{ hint?: strin
 export async function streamChat({
   messages,
   language,
+  attachment,
   onDelta,
   onDone,
   onError,
 }: {
   messages: Message[];
   language?: "auto" | "en" | "ar";
+  attachment?: Attachment;
   onDelta: (text: string) => void;
   onDone: () => void;
   onError: (error: string) => void;
@@ -97,7 +105,7 @@ export async function streamChat({
       "Content-Type": "application/json",
       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ messages, mcpContext, language: language ?? "auto" }),
+    body: JSON.stringify({ messages, mcpContext, language: language ?? "auto", attachment }),
   });
 
   if (!resp.ok) {
