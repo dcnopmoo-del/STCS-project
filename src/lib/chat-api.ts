@@ -1,3 +1,9 @@
+export type Attachment = {
+  name: string;
+  mimeType: string;
+  base64: string;
+};
+
 export type Message = {
   role: "user" | "assistant";
   content: string;
