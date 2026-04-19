@@ -31,26 +31,72 @@ export type LearningPayload =
   | { service: "study_plan"; payload: StudyPlanPayload }
   | { service: "concept_map"; payload: ConceptMapPayload };
 
-const URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/learning-tools`;
+// Each learning service is now its own MCP server edge function.
+const MCP_ENDPOINTS: Record<LearningService, { url: string; tool: string; argKey: string }> = {
+  flashcards:  { url: "flashcards-mcp",  tool: "generate_flashcards",   argKey: "topic" },
+  quiz:        { url: "quiz-mcp",        tool: "generate_quiz",         argKey: "topic" },
+  analogy:     { url: "analogy-mcp",     tool: "generate_analogy",      argKey: "concept" },
+  study_plan:  { url: "study-plan-mcp",  tool: "generate_study_plan",   argKey: "input" },
+  concept_map: { url: "concept-map-mcp", tool: "generate_concept_map",  argKey: "topic" },
+};
 
 export async function callLearningTool(
   service: LearningService,
   input: string,
   language: "auto" | "en" | "ar" = "auto"
 ): Promise<LearningPayload> {
-  const resp = await fetch(URL, {
+  const cfg = MCP_ENDPOINTS[service];
+  const endpoint = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${cfg.url}`;
+
+  const resp = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ service, input, language }),
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: Date.now(),
+      method: "tools/call",
+      params: { name: cfg.tool, arguments: { [cfg.argKey]: input, language } },
+    }),
   });
+
   if (!resp.ok) {
-    const err = await resp.json().catch(() => ({ error: `Error ${resp.status}` }));
-    throw new Error(err.error || `Error ${resp.status}`);
+    throw new Error(`MCP ${service} error ${resp.status}`);
   }
-  return await resp.json();
+
+  const text = await resp.text();
+  // MCP Streamable HTTP returns SSE-style "data: {json}" lines (or plain JSON)
+  const candidates: string[] = [];
+  if (text.trim().startsWith("{")) {
+    candidates.push(text.trim());
+  } else {
+    for (const line of text.split("\n")) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("data: ")) {
+        const payload = trimmed.slice(6).trim();
+        if (payload && payload !== "[DONE]") candidates.push(payload);
+      }
+    }
+  }
+
+  for (const jsonStr of candidates) {
+    try {
+      const data = JSON.parse(jsonStr);
+      if (data.error) throw new Error(data.error.message || `MCP error`);
+      const inner = data.result?.content?.[0]?.text;
+      if (inner) {
+        const payload = JSON.parse(inner);
+        return { service, payload } as LearningPayload;
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message.startsWith("MCP error")) throw e;
+      // skip malformed line
+    }
+  }
+  throw new Error("No valid response from MCP server");
 }
 
 // Marker prefix used to embed structured payloads inside assistant message content.
