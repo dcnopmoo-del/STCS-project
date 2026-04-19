@@ -49,7 +49,7 @@ const Index = () => {
     scrollToBottom();
   }, [messages, isLoading, scrollToBottom]);
 
-  const handleSend = async (input: string) => {
+  const handleSend = async (input: string, attachment?: ChatAttachment) => {
     const userMsg: Message = { role: "user", content: input };
     const updatedMessages = [...messages, userMsg];
     const newTitle = messages.length <= 1 ? input.slice(0, 40) + (input.length > 40 ? "…" : "") : active.title;
@@ -83,6 +83,9 @@ const Index = () => {
       await streamChat({
         messages: updatedMessages.filter((m) => m !== welcomeMessage),
         language,
+        attachment: attachment
+          ? { name: attachment.name, mimeType: attachment.mimeType, base64: attachment.base64 }
+          : undefined,
         onDelta: upsertAssistant,
         onDone: async () => {
           setIsLoading(false);
