@@ -68,7 +68,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, mcpContext, language } = await req.json();
+    const { messages, mcpContext, language, attachment } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -81,6 +81,39 @@ serve(async (req) => {
       systemContent += `\n\nStudent progress level: ${mcpContext.progressLevel}/5. Current escalation context — adjust your response level accordingly. If progress is 1-2, stay at Level 1-2. If 3-4, move to Level 3. If 5, you may provide the answer (Level 4).`;
     }
 
+    // If an attachment is present, transform the last user message into multimodal content
+    const outgoingMessages = [...messages];
+    if (attachment?.base64 && attachment?.mimeType) {
+      const lastIdx = outgoingMessages.length - 1;
+      const last = outgoingMessages[lastIdx];
+      if (last && last.role === "user") {
+        const dataUrl = `data:${attachment.mimeType};base64,${attachment.base64}`;
+        const isImage = attachment.mimeType.startsWith("image/");
+        const textPart = typeof last.content === "string" && last.content.trim()
+          ? last.content
+          : "Please analyze the attached file and help me understand it (without giving away the final answer).";
+
+        if (isImage) {
+          outgoingMessages[lastIdx] = {
+            role: "user",
+            content: [
+              { type: "text", text: textPart },
+              { type: "image_url", image_url: { url: dataUrl } },
+            ],
+          };
+        } else {
+          // PDFs and text files: send as a file part (Gemini via Lovable AI Gateway accepts file_url)
+          outgoingMessages[lastIdx] = {
+            role: "user",
+            content: [
+              { type: "text", text: `${textPart}\n\n(Attached file: ${attachment.name ?? "file"}, type: ${attachment.mimeType})` },
+              { type: "image_url", image_url: { url: dataUrl } },
+            ],
+          };
+        }
+      }
+    }
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -88,10 +121,10 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemContent },
-          ...messages,
+          ...outgoingMessages,
         ],
         stream: true,
       }),
