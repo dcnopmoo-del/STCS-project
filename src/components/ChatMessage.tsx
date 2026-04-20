@@ -1,7 +1,9 @@
+import { useId } from "react";
 import ReactMarkdown from "react-markdown";
-import { Bot, User } from "lucide-react";
+import { Bot, User, Volume2, Square } from "lucide-react";
 import { decodeLearningMessage } from "@/lib/learning-tools";
 import LearningRenderer from "@/components/learning/LearningRenderer";
+import { useSpeechSynthesis } from "@/hooks/use-speech";
 
 type ChatMessageProps = {
   role: "user" | "assistant";
@@ -12,6 +14,10 @@ type ChatMessageProps = {
 const ChatMessage = ({ role, content, isGrouped = false }: ChatMessageProps) => {
   const isUser = role === "user";
   const learning = !isUser ? decodeLearningMessage(content) : null;
+  const msgId = useId();
+  const { speak, stop, speakingId, supported: ttsSupported } = useSpeechSynthesis();
+  const isSpeaking = speakingId === msgId;
+  const canSpeak = !isUser && !learning && ttsSupported && content.trim().length > 0;
 
   return (
     <div
@@ -55,6 +61,18 @@ const ChatMessage = ({ role, content, isGrouped = false }: ChatMessageProps) => 
           <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-pre:bg-muted prose-pre:rounded-xl">
             <ReactMarkdown>{content}</ReactMarkdown>
           </div>
+        )}
+        {canSpeak && (
+          <button
+            type="button"
+            onClick={() => (isSpeaking ? stop() : speak(msgId, content))}
+            className="mt-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-background/60 transition-colors"
+            aria-label={isSpeaking ? "Stop reading" : "Read aloud"}
+            title={isSpeaking ? "Stop" : "Read aloud"}
+          >
+            {isSpeaking ? <Square className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
+            {isSpeaking ? "Stop" : "Listen"}
+          </button>
         )}
       </div>
     </div>
