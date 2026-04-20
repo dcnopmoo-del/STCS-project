@@ -193,7 +193,7 @@ const Index = () => {
             {showEmptyState ? (
               <>
                 <ChatMessage role="assistant" content={welcomeMessage.content} />
-                <EmptyState onSend={handleSend} />
+                <EmptyState />
               </>
             ) : (
               groupedMessages.map((msg, i) => (
