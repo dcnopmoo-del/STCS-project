@@ -44,7 +44,15 @@ mcpServer.tool("generate_concept_map", {
     const topic = (args.topic || "").trim();
     if (!topic) throw new Error("topic is required");
     const lang = args.language === "en" || args.language === "ar" ? args.language : "auto";
-    const system = `You are an expert at building hierarchical concept maps. Identify the main topic, 4-7 key subtopics, and 2-4 sub-subtopics each. Concise labels (1-5 words).\n\nLANGUAGE RULE (CRITICAL): ${LANGUAGE_RULES[lang]}`;
+    const system = `You build clear, well-structured hierarchical concept maps for students.
+
+STRUCTURE (strict):
+- "root.label": the exact topic given.
+- "root.children": EXACTLY 5-7 key subtopics that, together, give a complete picture of the topic. Order them logically (foundational → advanced).
+- Each subtopic has 2-4 leaf children that are concrete sub-concepts, mechanisms, or examples — NOT vague restatements of the parent.
+- Labels: 1-5 words, concise, no punctuation at the end, no numbering.
+- No duplicate labels anywhere in the tree.
+- Cover the breadth of the topic; do not focus on a single sub-area.\n\nLANGUAGE RULE (CRITICAL): ${LANGUAGE_RULES[lang]}`;
     const payload = await callAI(system, `Build a concept map for: ${topic}`, "generate_concept_map", {
       type: "object",
       properties: {
