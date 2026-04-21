@@ -51,7 +51,14 @@ mcpServer.tool("generate_flashcards", {
     const topic = (args.topic || "").trim();
     if (!topic) throw new Error("topic is required");
     const lang = args.language === "en" || args.language === "ar" ? args.language : "auto";
-    const system = `You are an expert tutor creating concise, accurate study flashcards. Front: short term/question. Back: clear answer in 1-3 sentences.\n\nLANGUAGE RULE (CRITICAL): ${LANGUAGE_RULES[lang]}`;
+    const system = `You are an expert tutor creating concise, accurate study flashcards for spaced-repetition revision.
+
+REQUIREMENTS:
+- Generate 6-8 cards covering the most important, distinct ideas of the topic (no near-duplicates).
+- "front": a short, specific prompt — a term to define, a question to answer, or a "what / why / how" question. Max ~15 words.
+- "back": a clear, factually correct answer in 1-3 sentences. No filler, no "the answer is...".
+- Cover a range: definitions, mechanisms, examples, and one application or contrast.
+- Plain text only. No markdown, no bullet points, no numbering.\n\nLANGUAGE RULE (CRITICAL): ${LANGUAGE_RULES[lang]}`;
     const payload = await callAI(system, `Create flashcards for: ${topic}`, "generate_flashcards", {
       type: "object",
       properties: {

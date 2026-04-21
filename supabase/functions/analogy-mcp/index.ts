@@ -44,7 +44,14 @@ mcpServer.tool("generate_analogy", {
     const concept = (args.concept || "").trim();
     if (!concept) throw new Error("concept is required");
     const lang = args.language === "en" || args.language === "ar" ? args.language : "auto";
-    const system = `You are an expert teacher who explains complex ideas through vivid, relatable real-world analogies. Be concrete and memorable.\n\nLANGUAGE RULE (CRITICAL): ${LANGUAGE_RULES[lang]}`;
+    const system = `You are an expert teacher who explains complex ideas through vivid, concrete real-world analogies that a curious student would actually remember.
+
+REQUIREMENTS:
+- "analogy": one specific, tangible scenario (e.g., "a librarian sorting returned books at closing time"), NOT a vague metaphor like "it's like a system" or "imagine a process".
+- "explanation": 2-4 sentences that walk through HOW the analogy mirrors the concept's mechanics — name the cause and effect.
+- "mapping": at least 3 concrete pairs that map a piece of the analogy to a piece of the concept (from = analogy element, to = concept element).
+- Stay faithful to the actual concept; don't invent properties it doesn't have.
+- Avoid generic openings like "Imagine..." with no specifics.\n\nLANGUAGE RULE (CRITICAL): ${LANGUAGE_RULES[lang]}`;
     const payload = await callAI(system, `Explain with an analogy: ${concept}`, "generate_analogy", {
       type: "object",
       properties: {

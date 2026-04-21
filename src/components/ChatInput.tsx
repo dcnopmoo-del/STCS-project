@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Paperclip, X, FileText, Image as ImageIcon, FileType } from "lucide-react";
+import { Send, Paperclip, X, FileText, Image as ImageIcon, FileType, Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useSpeechRecognition } from "@/hooks/use-speech";
 
 export type ChatAttachment = {
   name: string;
@@ -43,6 +44,23 @@ const ChatInput = ({ onSend, disabled }: ChatInputProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { listening, start: startListening, stop: stopListening, supported: micSupported } =
+    useSpeechRecognition((transcript) => {
+      setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+    });
+
+  const handleMicClick = () => {
+    if (!micSupported) {
+      toast({
+        title: "Voice input not supported",
+        description: "Your browser doesn't support speech recognition. Try Chrome or Edge.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (listening) stopListening();
+    else startListening();
+  };
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -130,6 +148,22 @@ const ChatInput = ({ onSend, disabled }: ChatInputProps) => {
           aria-label="Attach file"
         >
           <Paperclip className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          onClick={handleMicClick}
+          disabled={disabled}
+          className={`h-9 w-9 shrink-0 rounded-xl ${
+            listening
+              ? "text-destructive bg-destructive/10 hover:bg-destructive/15 animate-pulse"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+          aria-label={listening ? "Stop recording" : "Start voice input"}
+          title={listening ? "Stop recording" : "Voice input"}
+        >
+          {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
         </Button>
         <textarea
           ref={textareaRef}

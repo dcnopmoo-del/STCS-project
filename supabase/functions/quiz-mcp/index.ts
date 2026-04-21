@@ -44,7 +44,12 @@ mcpServer.tool("generate_quiz", {
     const topic = (args.topic || "").trim();
     if (!topic) throw new Error("topic is required");
     const lang = args.language === "en" || args.language === "ar" ? args.language : "auto";
-    const system = `You are an expert quiz writer. Write 5 multiple-choice questions of varying difficulty. Distractors plausible but unambiguously wrong. Brief explanation per correct answer.\n\nLANGUAGE RULE (CRITICAL): ${LANGUAGE_RULES[lang]}`;
+    const system = `You are an expert quiz writer for a Socratic tutoring app. Write EXACTLY 5 multiple-choice questions about the EXACT topic the student gave — do not drift to a related topic. Mix difficulty (2 easy, 2 medium, 1 challenging). Each question:
+- Tests understanding, not trivia or memorization of obscure facts.
+- Has 4 options. Distractors must be plausible and reflect common misconceptions, but be unambiguously wrong.
+- Includes a 1-2 sentence explanation of WHY the correct answer is right.
+- Uses clear, grade-appropriate wording. No trick questions, no negations like "which is NOT".
+Return ONLY clean text — no stray foreign-script characters, no markdown, no code fences.\n\nLANGUAGE RULE (CRITICAL): ${LANGUAGE_RULES[lang]}`;
     const payload = await callAI(system, `Create a quiz on: ${topic}`, "generate_quiz", {
       type: "object",
       properties: {

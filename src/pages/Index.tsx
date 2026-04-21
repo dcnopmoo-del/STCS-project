@@ -186,14 +186,14 @@ const Index = () => {
       />
 
       <div className="flex flex-1 flex-col min-w-0">
-        <ChatHeader onMenuClick={() => setSidebarOpen(true)} language={language} onLanguageChange={setLanguage} />
+        <ChatHeader onMenuClick={() => setSidebarOpen(true)} />
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto chat-scroll">
           <div className="mx-auto max-w-2xl px-4 py-6">
             {showEmptyState ? (
               <>
                 <ChatMessage role="assistant" content={welcomeMessage.content} />
-                <EmptyState onSend={handleSend} />
+                <EmptyState />
               </>
             ) : (
               groupedMessages.map((msg, i) => (
